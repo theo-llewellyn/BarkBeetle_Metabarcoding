@@ -16,8 +16,8 @@ echo "Running on hosts: $SLURM_NODELIST"
 echo "Running on $SLURM_NNODES nodes."
 echo "Current working directory is `pwd`"
 
-iqtree -s MSA.MAFFT.aln.With_Names_tAl_gt0.2.fa \
+iqtree -s MSA.MAFFT.aln.With_Names_tAl_gappyout.fa \
  -m GTR+G \
  -B 1000 -bnni \
- --prefix CRotus_3820T_trimmed_gt0.2_guidance \
+ --prefix CRotus_3820T_trimmed_guidance \
  -T 1
