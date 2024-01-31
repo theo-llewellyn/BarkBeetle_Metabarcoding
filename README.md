@@ -5,11 +5,11 @@ All bash scripts were run on the Natural History Museum (NHM) Franklin and High 
 
 Order of analyses: 
 
-[1. Sequence Denoising](https://github.com/theo-llewellyn/)
+[1. Sequence Denoising](https://github.com/theo-llewellyn/BarkBeetle_Metabarcoding#1-sequence-denoising)
 
-[2. Taxonomic identification](https://github.com/theo-llewellyn/)
+[2. Taxonomic identification](https://github.com/theo-llewellyn/BarkBeetle_Metabarcoding#2-taxonomic-identification)
 
-[3. Fungal Diversity and Community Detection Analysis](https://github.com/theo-llewellyn/l)
+[3. Fungal Diversity and Community Detection Analysis](https://github.com/theo-llewellyn/BarkBeetle_Metabarcoding#3-fungal-diversity-and-community-detection-analysis)
 
 ## 1. Sequence Denoising
 `cd denoising`
