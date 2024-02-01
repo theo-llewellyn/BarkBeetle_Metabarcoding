@@ -16,9 +16,7 @@ Order of analyses:
 
 The following scripts demultiplex and denoise reads, merge forward and reverse reads, detect consensus chimaeras and cluster reads in operational taxonomic units.
 1. `./demultiplex.sh`
-2. `./DADA2_denoising.sh`
-3. `./merge_forward_reverse.sh`
-4. `./chimaera_detection.sh`
+2. `./DADA2_denoising_chimaera.sh`
 5. `./OTU_clustering.sh`
 
 ## 2. Taxonomic identification
