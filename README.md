@@ -1,7 +1,7 @@
 # BarkBeetle_Metabarcoding
-Bioinformatic scripts/code for Llewellyn et al. (2024) INSERT TITLE
+Bioinformatic scripts/code for 'Taxonomic and Geographic Diversity of Fungal Symbiont Communities Associated with Tropical Bark and Ambrosia Beetles'
 
-All bash scripts were run on the Natural History Museum (NHM) Franklin and High Performance Computer servers. NHM servers use SLURM queueing system, therefore core/RAM/runtimes in .sh scripts are specified in this format. All R scripts were run locally in R v4.3.0 in RStudio v2023.06.0+421.
+All bash scripts were run on HPC servers using SLURM queueing system, therefore core/RAM/runtimes in .sh scripts are specified in this format. All R scripts were run locally in R v4.3.0 in RStudio v2023.06.0+421.
 
 Order of analyses: 
 
