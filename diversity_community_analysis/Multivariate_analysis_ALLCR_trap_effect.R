@@ -14,7 +14,7 @@ WeUniFrac_diss <- read_tsv('IQtreeCRcoremetrics/weighted_unifrac/weighted_unifra
   column_to_rownames("...1")
 
 #read in sample data
-sample_data <- read_csv('../NCBI_submission/Sco_Pla_FG_Borneo_metadata.csv') %>%
+sample_data <- read_csv('Sco_Pla_FG_Borneo_metadata.csv') %>%
   #remove samples not in dissimilarity matrix
   filter(fungal_metabarcode_ID %in% colnames(BrayCurtis_diss))
 
