@@ -1,3 +1,5 @@
+#!/bin/bash
+###Unifrac for principals####
 
 #convert feature table to biom format
 biom convert -i ALLCRfiltered_feature-table_trap_collapse.tsv -o ALLCRfiltered_feature-table_trap_collapse.biom --table-type "Table" --to-hdf5
