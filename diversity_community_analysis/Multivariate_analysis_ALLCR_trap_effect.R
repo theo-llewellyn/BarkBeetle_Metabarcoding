@@ -3,8 +3,6 @@ library(tidyverse)
 library(vegan)
 library(cowplot)
 
-setwd("~/OneDrive - Natural History Museum/01_PUBLICATIONS/ITS_Fungi_Metabarcoding/RESULTS/")
-
 #read in dissimilarity matrices
 BrayCurtis_diss <- read_tsv('CRcoremetrics/bray_curtis_distance_matrix/data/distance-matrix.tsv') %>%
   column_to_rownames("...1")
