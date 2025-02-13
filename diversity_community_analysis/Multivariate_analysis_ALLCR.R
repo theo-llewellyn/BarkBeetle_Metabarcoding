@@ -3,28 +3,28 @@ library(tidyverse)
 library(vegan)
 library(cowplot)
 
-
 #read in dissimilarity matrices
 BrayCurtis_diss <- read_tsv('CRcoremetrics/bray_curtis_distance_matrix/data/distance-matrix.tsv') %>%
   column_to_rownames("...1")
 Jaccard_diss <- read_tsv('CRcoremetrics/jaccard_distance_matrix/data/distance-matrix.tsv') %>%
   column_to_rownames("...1")
-UnwUniFrac_diss <- read_tsv('IQtreeCRcoremetrics/unweighted_unifrac_distance_matrix/distance-matrix.tsv') %>%
+UnwUniFrac_diss <- read_tsv('IQtreeCRcoremetrics/unweighted_unifrac/unweighted_unifrac_distance_matrix/distance-matrix.tsv') %>%
   column_to_rownames("...1")
-WeUniFrac_diss <- read_tsv('IQtreeCRcoremetrics/weighted_unifrac_distance_matrix/distance-matrix.tsv') %>%
+WeUniFrac_diss <- read_tsv('IQtreeCRcoremetrics/weighted_unifrac/weighted_unifrac_distance_matrix/distance-matrix.tsv') %>%
   column_to_rownames("...1")
 
 #read in sample data
-sample_data <- read_csv('ALLCR_level-5.csv') %>%
-  dplyr::select(c(index,subfamily,locality,country,species,place)) %>%
+sample_data <- read_csv('Sco_Pla_FG_Borneo_metadata.csv') %>%
+  dplyr::select(c(fungal_metabarcode_ID,subfamily,country)) %>% 
+  rename(index = fungal_metabarcode_ID) %>%
+  replace_na(list(subfamily = 'Platypodinae')) %>%
   filter(index %in% colnames(BrayCurtis_diss))
 
-#check malaysia samples removed
-malaysia_subset <- subset(sample_data, sample_data$country == 'Malaysia')
-for(i in malaysia_subset$index){
-  print(paste('Sample',i, sep = ' '))
-  print(grep(i,colnames(BrayCurtis_diss)))
-}
+#Danum Valley to remove
+Danum_Valley <- c('FG_Sco_P2_A09','FG_Sco_P2_A10','FG_Sco_P2_B09','FG_Sco_P2_B10','FG_Sco_P2_C09','FG_Sco_P2_C10','FG_Sco_P2_D09','FG_Sco_P2_D10','FG_Sco_P2_E09','FG_Sco_P2_E10','FG_Sco_P2_F09','FG_Sco_P2_F10','FG_Sco_P2_G09','FG_Sco_P2_H08','FG_Sco_P2_H09')
+#remove Danum, NA index and P2_A12 as its not in filtered OTU data
+sample_data <- sample_data[ ! sample_data$index %in% Danum_Valley, ] %>%
+  arrange(index)
 
 #PERMANOVA testing effect of 
 adonis2(as.dist(BrayCurtis_diss) ~ country * subfamily, data = sample_data)
@@ -162,7 +162,7 @@ legend_country <- get_legend(
   PCoA_WeUniFrac_country + theme(legend.box.margin = margin(0, 0, 0, 12), legend.direction = "horizontal")
 )
 
-png("ALLCR_PCoAs_IQTree.png", res = 400, height = 3508, width = 2480)
+png("FIGURES/ALLCR_PCoAs_IQTree.png", res = 400, height = 3508, width = 2480)
 plot_grid(legend_subfam, legend_country,
           PCoA_BrayCurtis_subfam, PCoA_BrayCurtis_country,
           PCoA_Jaccard_subfam, PCoA_Jaccard_country, 
@@ -172,4 +172,3 @@ plot_grid(legend_subfam, legend_country,
           ncol = 2, rel_heights = c(0.25,1,1,1,1)
           )
 dev.off()
-
