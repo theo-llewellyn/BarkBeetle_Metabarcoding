@@ -11,21 +11,29 @@ taxonomy_data <- read_csv("UNITE_TBAS_CR.csv") %>%
   select(c(query, consensus_three))
 
 #read in sample data
-sample_data <- read_csv('ALLCR_level-5.csv') %>%
-  select(c(index,subfamily,locality,country,species,place)) %>%
-  filter(country %in% c('Borneo','French Guiana')) %>%
+sample_data <- read_csv('Sco_Pla_FG_Borneo_metadata.csv') %>%
+  dplyr::select(c(fungal_metabarcode_ID,subfamily,country)) %>% 
+  rename(index = fungal_metabarcode_ID) %>%
+  replace_na(list(subfamily = 'Platypodinae'))
+
+#Danum Valley to remove
+Danum_Valley <- c('FG_Sco_P2_A09','FG_Sco_P2_A10','FG_Sco_P2_B09','FG_Sco_P2_B10','FG_Sco_P2_C09','FG_Sco_P2_C10','FG_Sco_P2_D09','FG_Sco_P2_D10','FG_Sco_P2_E09','FG_Sco_P2_E10','FG_Sco_P2_F09','FG_Sco_P2_F10','FG_Sco_P2_G09','FG_Sco_P2_H08','FG_Sco_P2_H09')
+#remove Danum, NA index and P2_A12 as its not in filtered OTU data
+sample_data <- sample_data[ ! sample_data$index %in% c(Danum_Valley,'Borneo_Sco_P2_A12','#N/A'), ] %>%
   arrange(index)
 
 #read in data with OTUs and their presence in each sample
-OTU_2_Sample <- read_tsv("ALLCRfiltered_feature-table.tsv", skip = 1) %>% 
+OTU_2_Sample <- read_tsv("ALLCRfiltered_feature-table.tsv", skip = 1) %>%
   #convert to presence absence
-  mutate_if(is.numeric, ~1 * (. > 0)) %>%
+  mutate_if(is.numeric, ~1 * (. > 0)) %>% 
   #merge with taxonomy info
   left_join(.,taxonomy_data, by = c(`#OTU ID` = 'query')) %>%
   #remove OTU_ID_col
   select(-"#OTU ID") %>%
   #make taxa names unique
   mutate(consensus_three = paste(row_number(),consensus_three,sep = "_")) %>%
+  #remove Danum
+  dplyr::select (-c(Danum_Valley)) %>%
   #set OTU ID as rownames
   column_to_rownames(var = "consensus_three")
 
@@ -57,7 +65,7 @@ indval <- multipatt(transposed_OTU_2_Sample, sample_data$country,
 summary(indval, indvalcomp = TRUE, At=0.5, Bt=0.2)
 
 #testing for combinations of indicators for Borneo
-Borneo_indic <- indicators(X=transposed_OTU_2_Sample, cluster= sample_data$country, group='Borneo', 
+Borneo_indic <- indicators(X=transposed_OTU_2_Sample, cluster= sample_data$country, group='Malaysia', 
                  max.order = 3, verbose=TRUE, 
                  At=0.5, Bt=0.2,
                  func = 'IndVal')
