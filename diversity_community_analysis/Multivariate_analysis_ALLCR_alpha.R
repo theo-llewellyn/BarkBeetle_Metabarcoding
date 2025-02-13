@@ -2,41 +2,97 @@
 library(tidyverse)
 library(vegan)
 library(cowplot)
+library(nlme)
+library(lme4)
+library(flexplot)
 
-#read in alpha diversity stats
-faiths <- read_tsv('IQtreeCRcoremetrics/faith_pd_vector/alpha-diversity.tsv')
-shannon <- read_tsv('IQtreeCRcoremetrics/shannon_vector/alpha-diversity.tsv')
-#merge the two
-alpha_stats <- left_join(faiths, shannon, by = c('#SampleID' = '...1'))
+#read in data with OTUs and their presence in each sample
+OTU_2_Sample <- read_tsv("ALLCRfiltered_feature-table.tsv", skip = 1) %>% 
+  #convert to presence absence
+  #transpose
+  pivot_longer(Borneo_Sco_P1_A01:FG_Sco_P3_H08) %>% 
+  pivot_wider(names_from = `#OTU ID`, values_from = value)
+
+#visualise sequencing depth
+OTU_2_Sample %>%
+  column_to_rownames(var = "name") %>%
+  mutate(total = rowSums(.,)) %>%
+ggplot(aes(x = total)) + 
+  geom_histogram(binwidth = 500) +
+  scale_y_continuous(labels = scales::comma)
+
+#see where bulk of data sits
+OTU_2_Sample %>%
+  column_to_rownames(var = "name") %>%
+  mutate(total = rowSums(.,)) %>%
+ggplot(aes(x=1,y=total)) +
+  geom_jitter() +
+  scale_y_continuous(labels = scales::comma)
+
+#sort by the total number of sequences
+OTU_2_Sample %>%
+  column_to_rownames(var = "name") %>%
+  mutate(total = rowSums(.,)) %>%
+  arrange(total) %>%
+  select(total) %>%
+  head(50)
+
+#rarefy to 500 seqs
+rarefied_richness <- OTU_2_Sample %>%
+  column_to_rownames(var = "name") %>%
+  rarefy(., 1000) %>%
+  as_tibble(rownames ='name') %>%
+  select(name, rarefied_richness = value)
+
+#non-rarefied richness
+richness <- OTU_2_Sample %>%
+  column_to_rownames(var = "name") %>%
+  mutate_if(is.numeric, ~1 * (. > 0)) %>%
+  mutate(total = rowSums(.,)) %>%
+  select(total) %>%
+  as_tibble(rownames ='name') %>%
+  select(name, richness = total) %>%
+  inner_join(rarefied_richness)
+
+
+#read phylogenetic diversity indices
+MPD_MNTD <- read_csv('MPD_MNTD_results.csv')
+#merge the richness and phylogenetic diversity
+alpha_stats <- left_join(richness, MPD_MNTD, by = c('name' = 'rowname'))
 
 #read in sample data
-sample_data <- read_csv('Sco_Pla_FG_Borneo_metadata.csv') %>%
+sample_data <- read_csv('../NCBI_submission/Sco_Pla_FG_Borneo_metadata.csv') %>%
   #remove samples not in dissimilarity matrix
-  filter(fungal_metabarcode_ID %in% alpha_stats$`#SampleID`)
+  filter(fungal_metabarcode_ID %in% alpha_stats$name)
 
 #join sample and alpha data
-alpha_stats_metadata <- inner_join(alpha_stats, sample_data, by = c('#SampleID' = 'fungal_metabarcode_ID'))
-
-#check Danum valley samples removed
-subset(alpha_stats_metadata, alpha_stats_metadata$principal_id == 'Danum_Valley_1')
-
-#visualise differences between principals
-ggplot(alpha_stats_metadata, aes(x = principal_id, y = faith_pd, colour = Country)) + 
-  geom_boxplot()+ 
-  theme_classic()
+alpha_stats_metadata <- inner_join(alpha_stats, sample_data, by = c('name' = 'fungal_metabarcode_ID'))
 
 #GLM
-#full model allowing random effect to vary both slope and intercept
-#Faiths PD
-faiths_glm_full <- glmer(faith_pd ~ FAMILY*Country + (1|principal_id),
-                         family = Gamma,
-                         data = alpha_stats_metadata)
-summary(faiths_glm_full)
+#full model allowing random effect to vary both slope and intercept. Negative binomial distribution
+richness_glm <- glmer.nb(rarefied_richness ~ FAMILY.x*Country + (1+FAMILY.x|principal_id), data = alpha_stats_metadata)
 
-#shannon
-shannon_glm_full <- glmer(shannon_entropy ~ FAMILY*Country + (1|principal_id),
-                          family = Gamma,
-                          data = alpha_stats_metadata)
-summary(shannon_glm_full)
+#check if significant
+summary(richness_glm)
 
-# no significant terms
+visualize(richness_glm, plot = 'model', sample = 30) +
+  theme(legend.position = "none")
+
+################################################################################
+#same with MPD
+#full model allowing random effect to vary both slope and intercept. Negative binomial distribution
+MPD_glm <- glmer.nb(mpd.obs ~ FAMILY.x*Country + (1+FAMILY.x|principal_id), data = alpha_stats_metadata)
+
+#check if significant
+summary(MPD_glm)
+
+################################################################################
+#same with MNTD
+#full model allowing random effect to vary both slope and intercept. Negative binomial distribution
+MNTD_glm <- glmer.nb(mntd.obs ~ FAMILY.x*Country + (1+FAMILY.x|principal_id), data = alpha_stats_metadata)
+
+#check if significant
+summary(MNTD_glm)
+
+visualize(MNTD_glm, plot = 'model', sample = 30) +
+  theme(legend.position = "none")
