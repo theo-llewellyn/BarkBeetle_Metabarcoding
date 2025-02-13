@@ -43,10 +43,12 @@ The following scripts reconstruct a phylogeny of fungal OTUs, calculate alpha an
 The following scripts were repeated for the four trees to test whether tree reconstruction method impacted results
 1. `./calculate_diversity_metrics.sh`
 2. `Rscript Multivariate_analysis_ALLCR.R` Beta diversity analysis
-3. `Rscript Multivariate_analysis_ALLCR_alpha.R` alpha diversity analysis
-4. `./calculate_principal_unifrac.sh` calculate unifrac distances for traps instead of samples
-5. `Rscript Multivariate_analysis_ALLCR_trap_effect.R` test the effect of traps on beta diversity results
+3. `Rscript MPD_MNTD.R` Calculate phylogenetic alpha diversity metrics
+4. `Rscript Multivariate_analysis_ALLCR_alpha.R` alpha diversity analysis
+5. `./calculate_principal_unifrac.sh` calculate unifrac distances for traps instead of samples
+6. `Rscript Multivariate_analysis_ALLCR_trap_effect.R` test the effect of traps on beta diversity results
 
 ### 3.3 Indicator and Community Detection
 1. `Rscript indicator_species_analysis.R`
-2. `Rscript cooccurrence_analysis.R` requires a modified version of the cooccur package plot.cooccur function to allow for two-tail testing
+2. `Rscript significant_OTUs_Borneo_FG_envfit.R` pulls OTUs that significantly correlate with the PCoA clusters obtained from step 3.2.2
+3. `Rscript cooccurrence_analysis.R` requires a modified version of the cooccur package plot.cooccur function to allow for two-tail testing
