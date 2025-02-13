@@ -149,7 +149,7 @@ data.frame(UNITE_TBAS_CR$query, str_split_fixed(UNITE_TBAS_CR$consensus_three,'_
 UNITE_TBAS_QIIME_CR_consensus[UNITE_TBAS_QIIME_CR_consensus == 'NA'] <- 'Unclassified'
 
 #histogram of number of Classified OTUs at each rank
-png("ALLCR_TBAS_UNITE_Classified_OTUs.png",  res = 400, width = 2480, height = 2480)
+png("FIGURES/ALLCR_TBAS_UNITE_Classified_OTUs.png",  res = 400, width = 2480, height = 2480)
 UNITE_TBAS_QIIME_CR_consensus[,-1] %>%
   pivot_longer(cols = starts_with('X')) %>%
   count(name, value) %>%
@@ -170,9 +170,11 @@ dev.off()
 UNITE_TBAS_QIIME_CR_consensus_tax <- right_join(OTU_2_Sample,UNITE_TBAS_QIIME_CR_consensus, by = c(`#OTU ID` = 'UNITE_TBAS_CR.query'))
 
 #sample and beetle subfamily
-OTU_taxa <- read_csv("ALLCR_level-5.csv")
-subfamily_info <- OTU_taxa[,c(1,422)]
-
+sample_data <- read_csv('Sco_Pla_FG_Borneo_metadata.csv') %>%
+  dplyr::select(c(fungal_metabarcode_ID,FAMILY,subfamily,country))
+subfamily_info <- sample_data[,c(1,3)] %>% 
+  rename(index = fungal_metabarcode_ID) %>%
+  replace_na(list(subfamily = 'Platypodinae'))
 
 UNITE_TBAS_QIIME_CR_consensus_tax_long <- UNITE_TBAS_QIIME_CR_consensus_tax %>%
   pivot_longer(
@@ -208,7 +210,7 @@ display_venn <- function(x, ...){
 }
 
 display_venn(venn_data, fill = c("#E69F00","#56B4E9"), cat.pos = c(0,0))
-venn.diagram(venn_data, filename = "Sco_Plat_CR_venn.png", fill = c("#E69F00","#56B4E9"), cat.pos = c(0,10), category.names = c('Fungal OTUs\n Scolytinae','Fungal OTUs\n Platypodinae'))
+venn.diagram(venn_data, filename = "FIGURES/Sco_Plat_CR_venn.png", fill = c("#E69F00","#56B4E9"), cat.pos = c(0,10), category.names = c('Fungal OTUs\n Scolytinae','Fungal OTUs\n Platypodinae'))
 
 #Venn diagram of Locality
 #subset by subfamily
@@ -223,7 +225,7 @@ FG_OTUs <- filter(UNITE_TBAS_QIIME_CR_consensus_tax_long_csv, grepl('FG', name))
 #plot Venn diagram of shared OTUs
 venn_data_locality <- list(Borneo = Borneo_OTUs$`#OTU ID`, FG = FG_OTUs$`#OTU ID`)
 display_venn(venn_data_locality, fill = c("#B25690","#71B379"), cat.pos = c(0,0))
-venn.diagram(venn_data_locality, filename = "Borneo_FG_CR_venn.png", fill = c("#B25690","#71B379"), cat.pos = c(0,0), category.names = c('Fungal OTUs\n Borneo','Fungal OTUs\n French Guiana'))
+venn.diagram(venn_data_locality, filename = "FIGURES/Borneo_FG_CR_venn.png", fill = c("#B25690","#71B379"), cat.pos = c(0,0), category.names = c('Fungal OTUs\n Borneo','Fungal OTUs\n French Guiana'))
 
 #split the Sco and Platy into two sites as well
 Scolytinae_Borneo_OTUs <- left_join(UNITE_TBAS_QIIME_CR_consensus_tax_long, subfamily_info, by = c('name' = 'index')) %>%
@@ -240,7 +242,7 @@ Scolytinae_FG_OTUs <- left_join(UNITE_TBAS_QIIME_CR_consensus_tax_long, subfamil
 
 venn_data_locality_Sco <- list(Borneo = Scolytinae_Borneo_OTUs$`#OTU ID`, FG = Scolytinae_FG_OTUs$`#OTU ID`)
 display_venn(venn_data_locality_Sco, fill = c("#B25690","#71B379"), cat.pos = c(0,0))
-venn.diagram(venn_data_locality_Sco, filename = "Scolytinae_Borneo_FG_CR_venn.png", fill = c("#B25690","#71B379"), cat.pos = c(0,0), category.names = c('Fungal OTUs\n Borneo','Fungal OTUs\n French Guiana'))
+venn.diagram(venn_data_locality_Sco, filename = "FIGURES/Scolytinae_Borneo_FG_CR_venn.png", fill = c("#B25690","#71B379"), cat.pos = c(0,0), category.names = c('Fungal OTUs\n Borneo','Fungal OTUs\n French Guiana'))
 
 
 Platypodinae_Borneo_OTUs <- left_join(UNITE_TBAS_QIIME_CR_consensus_tax_long, subfamily_info, by = c('name' = 'index')) %>%
@@ -257,7 +259,7 @@ Platypodinae_FG_OTUs <- left_join(UNITE_TBAS_QIIME_CR_consensus_tax_long, subfam
 
 venn_data_locality_Pla <- list(Borneo = Platypodinae_Borneo_OTUs$`#OTU ID`, FG = Platypodinae_FG_OTUs$`#OTU ID`)
 display_venn(venn_data_locality_Pla, fill = c("#B25690","#71B379"), cat.pos = c(0,0), inverted = TRUE)
-venn.diagram(venn_data_locality_Pla, filename = "Platypodinae_Borneo_FG_CR_venn.png", fill = c("#B25690","#71B379"), cat.pos = c(0,0), category.names = c('Fungal OTUs\n Borneo','Fungal OTUs\nFrench Guiana'), inverted = TRUE)
+venn.diagram(venn_data_locality_Pla, filename = "FIGURES/Platypodinae_Borneo_FG_CR_venn.png", fill = c("#B25690","#71B379"), cat.pos = c(0,0), category.names = c('Fungal OTUs\n Borneo','Fungal OTUs\nFrench Guiana'), inverted = TRUE)
 
 #split localities into subfamilies
 Borneo_Platy_OTUs <- filter(UNITE_TBAS_QIIME_CR_consensus_tax_long_csv, grepl('Borneo', name)) %>%
@@ -273,7 +275,7 @@ Borneo_Scoly_OTUs <- filter(UNITE_TBAS_QIIME_CR_consensus_tax_long_csv, grepl('B
 #plot Venn diagram of shared OTUs
 venn_data_Borneo_subfam <- list(Platypodinae = Borneo_Platy_OTUs$`#OTU ID`, Scolytinae = Borneo_Scoly_OTUs$`#OTU ID`)
 display_venn(venn_data_Borneo_subfam, fill = c("#56B4E9","#E69F00"), cat.pos = c(0,0))
-venn.diagram(venn_data_Borneo_subfam, filename = "Borneo_Sco_Plat_CR_venn.png", fill = c("#56B4E9","#E69F00"), cat.pos = c(0,0), category.names = c('Fungal OTUs\n Platypodinae','Fungal OTUs\n Scolytinae'))
+venn.diagram(venn_data_Borneo_subfam, filename = "FIGURES/Borneo_Sco_Plat_CR_venn.png", fill = c("#56B4E9","#E69F00"), cat.pos = c(0,0), category.names = c('Fungal OTUs\n Platypodinae','Fungal OTUs\n Scolytinae'))
 
 FG_Platy_OTUs <- filter(UNITE_TBAS_QIIME_CR_consensus_tax_long_csv, grepl('FG', name)) %>%
   filter(subfamily == 'Platypodinae') %>%
@@ -288,7 +290,7 @@ FG_Scoly_OTUs <- filter(UNITE_TBAS_QIIME_CR_consensus_tax_long_csv, grepl('FG', 
 #plot Venn diagram of shared OTUs
 venn_data_FG_subfam <- list(Platypodinae = FG_Platy_OTUs$`#OTU ID`, Scolytinae = FG_Scoly_OTUs$`#OTU ID`)
 display_venn(venn_data_FG_subfam, fill = c("#56B4E9","#E69F00"), cat.pos = c(0,0))
-venn.diagram(venn_data_FG_subfam, filename = "FG_Sco_Plat_CR_venn.png", fill = c("#56B4E9","#E69F00"), cat.pos = c(0,0), category.names = c('Fungal OTUs\n Platypodinae','Fungal OTUs\n Scolytinae'))
+venn.diagram(venn_data_FG_subfam, filename = "FIGURES/FG_Sco_Plat_CR_venn.png", fill = c("#56B4E9","#E69F00"), cat.pos = c(0,0), category.names = c('Fungal OTUs\n Platypodinae','Fungal OTUs\n Scolytinae'))
 
 
 Scolytinae_OTUs[,-c(1,2,7,8)] %>%
@@ -385,8 +387,6 @@ plot.with.inset <-
   draw_plot(main) +
   draw_plot(inset, x = .7, y = .76, width = .3, height = .3)
 
-png("ALLCR_OTU_taxonomy_TBAS_UNITE_Scolytinae_inset.png",  res = 400, width = 2480, height = 2480)
+png("FIGURES/ALLCR_OTU_taxonomy_TBAS_UNITE_Scolytinae_inset.png",  res = 400, width = 2480, height = 2480)
 plot.with.inset
 dev.off()
-
-#can then repeat previous section replacing Scolytinae for Platypodinae
