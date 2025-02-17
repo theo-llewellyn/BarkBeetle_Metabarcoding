@@ -49,6 +49,5 @@ The following scripts were repeated for the four trees to test whether tree reco
 6. `Rscript Multivariate_analysis_ALLCR_trap_effect.R` test the effect of traps on beta diversity results
 
 ### 3.3 Indicator and Community Detection
-1. `Rscript indicator_species_analysis.R`
-2. `Rscript significant_OTUs_Borneo_FG_envfit.R` pulls OTUs that significantly correlate with the PCoA clusters obtained from step 3.2.2
-3. `Rscript cooccurrence_analysis.R` requires a modified version of the cooccur package plot.cooccur function to allow for two-tail testing
+1. `Rscript significant_OTUs_Borneo_FG_envfit.R` pulls OTUs that significantly correlate with the PCoA clusters obtained from step 3.2.2
+2. `Rscript cooccurrence_analysis.R` requires a modified version of the cooccur package plot.cooccur function to allow for two-tail testing
