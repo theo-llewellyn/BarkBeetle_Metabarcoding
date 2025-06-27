@@ -37,8 +37,7 @@ The following scripts calculates alpha and beta diversity metrics, compare diver
 1. `Rscript alpha_div_2025.R` alpha diversity calculation and analysis
 2. `Rscript MPD_MNTD.R` Calculate phylogenetic alpha diversity metrics
 3. `Rscript Multivariate_analysis.R` Beta diversity analysis
-4. `./calculate_principal_unifrac.sh` calculate unifrac distances for traps instead of samples
-5. `Rscript trap_effect.R` test the effect of traps on beta diversity results
+4. `Rscript trap_effect.R` test the effect of traps on beta diversity results
 
 ### 3.3 Indicator and Community Detection
 1. `Rscript significant_OTUs_Borneo_FG_envfit.R` pulls OTUs that significantly correlate with the PCoA clusters obtained from step 3.2.2
