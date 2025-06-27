@@ -7,4 +7,8 @@
 
 module load mafft/7.271
 
-mafft --thread 8 --auto CRotuclusters_dna-sequences.fasta > CRotuclusters_dna-sequences_msa.fa
+#OTUs
+mafft \
+ --thread 4 \
+--auto ../OTUs/OTUssequences.fasta \
+> OTUs.msa.fa
