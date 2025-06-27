@@ -5,54 +5,43 @@ library(cooccur)
 library(tidyverse)
 library(reshape2)
 
+setwd("~/OneDrive - Natural History Museum/01_PUBLICATIONS/ITS_Fungi_Metabarcoding/RESULTS/")
 source(file = '../R_SCRIPTS/plot.coocur.R')
 
 ###################################################################################################################
 #read and format data
 
-#Read in UNITE blastn results
-taxonomy_data <- read_csv("UNITE_TBAS_CR.csv") %>%
-  select(c(query, consensus_three))
 
-#read in data with OTUs and their presence in each sample
-OTU_2_Sample <- read_tsv("ALLCRfiltered_feature-table.tsv", skip = 1) %>% 
-  #convert to presence absence
+#read in dissimilarity matrices
+OTU_table <- read_tsv('OTUs/OTUsotu_table.txt') %>% 
+  slice(-1) %>%
   mutate_if(is.numeric, ~1 * (. > 0)) %>%
-  #merge with taxonomy info
-  left_join(.,taxonomy_data, by = c(`#OTU ID` = 'query')) %>%
-  #remove OTU_ID_col
-  select(-"#OTU ID") %>%
-  #make taxa names unique
-  mutate(consensus_three = paste(row_number(),consensus_three,sep = "_")) %>%
-  #set OTU ID as rownames
-  column_to_rownames(var = "consensus_three")
+  column_to_rownames(var = "OTU_ID")
 
-#replace NAs with Unclassified in taxa names and then cut to the lowest identified taxon rank
-rownames(OTU_2_Sample) <- rownames(OTU_2_Sample) %>% 
-  gsub('NA',"Unclassified",.) %>% 
-  gsub('__Unclassified.*','_sp.',.)  %>% 
-  str_remove(.,'Fungi__[:alpha:].*__')
-
-#get sample metadata
-sample_data <- read_csv('Sco_Pla_FG_Borneo_metadata.csv')
+#read in sample data
+sample_data <- read_csv('../NCBI_submission/Sco_Pla_FG_Borneo_metadata.csv') %>%
+  dplyr::select(c(fungal_metabarcode_ID,subfamily,country)) %>% 
+  rename(index = fungal_metabarcode_ID) %>%
+  replace_na(list(subfamily = 'Platypodinae')) %>%
+  filter(index %in% colnames(OTU_table))
 
 
 ##Borneo
 #if we want the same taxa in the full analysis
-OTU_2_Sample_Borneo <- OTU_2_Sample[, names(OTU_2_Sample) %in% 
-                                      subset(sample_data, sample_data$Country == 'Malaysia')$fungal_metabarcode_ID]
+OTU_2_Sample_Borneo <- OTU_table[, names(OTU_table) %in% 
+                                      subset(sample_data, sample_data$country == 'Malaysia')$index]
 #remove OTUs in less than 10 samples in Borneo
-OTU_2_Sample_Borneo <- OTU_2_Sample_Borneo[-which(rowSums(OTU_2_Sample_Borneo[sapply(OTU_2_Sample_Borneo, is.numeric)]) < 10),]
+OTU_2_Sample_Borneo <- OTU_2_Sample_Borneo[rowSums(OTU_2_Sample_Borneo > 0) >= 10, ]
 
 #French Guiana
-OTU_2_Sample_FG <- OTU_2_Sample[, names(OTU_2_Sample) %in% 
-                                  subset(sample_data, sample_data$Country == 'French Guiana')$fungal_metabarcode_ID]
+OTU_2_Sample_FG <- OTU_table[, names(OTU_table) %in% 
+                               subset(sample_data, sample_data$country == 'French Guiana')$index]
 #remove OTUs in less than 10 samples in FG
-OTU_2_Sample_FG <- OTU_2_Sample_FG[-which(rowSums(OTU_2_Sample_FG[sapply(OTU_2_Sample_FG, is.numeric)]) < 10),]
+OTU_2_Sample_FG <- OTU_2_Sample_FG[rowSums(OTU_2_Sample_FG > 0) >= 10, ]
 
 
 ###################################################################################################################
-set.seed(071123)
+set.seed(18062025)
 cooccur.OTUs_Borneo <- cooccur(mat = OTU_2_Sample_Borneo, type = "spp_site", thresh = TRUE, spp_names = TRUE)
 cooccur.OTUs_FG <- cooccur(mat = OTU_2_Sample_FG, type = "spp_site", thresh = TRUE, spp_names = TRUE)
 
@@ -65,7 +54,7 @@ nrow(subset(prob.table(cooccur.OTUs_Borneo), p_gt <0.025))
 nrow(prob.table(cooccur.OTUs_Borneo))
 
 #summary number of significant cooccurrences Borneo
-summary(cooccur.OTUs_FG)
+summary(cooccur.OTUs_FG_presabs)
 #summary at 0.025 level
 nrow(subset(prob.table(cooccur.OTUs_FG), p_lt <0.025))
 nrow(subset(prob.table(cooccur.OTUs_FG), p_gt <0.025))
@@ -121,8 +110,8 @@ edges_Borneo <- subset(edges_Borneo, edges_Borneo$color != 'white')
 edges_FG <- subset(edges_FG, edges_FG$color != 'white')
 
 #save node info as table
-write_csv(nodes_Borneo, "cooccurrence/ALLCR_cooccurrence_network_nodes_Borneo.csv")
-write_csv(nodes_FG, "cooccurrence/ALLCR_cooccurrence_network_nodes_FG.csv")
+write_csv(nodes_Borneo, "cooccurrence/dynamicOTUs/cooccurrence_network_nodes_Borneo.csv")
+write_csv(nodes_FG, "cooccurrence/dynamicOTUs/cooccurrence_network_nodes_FG.csv")
 
 #save the effect sizes as list of pairs
 eff_size_pairs_Borneo <- as.data.frame(as.table(as.matrix(eff_sizes_Borneo)))
@@ -138,8 +127,8 @@ edges_Borneo_ES <- left_join(edges_Borneo,eff_size_pairs_Borneo, by = c('from'='
 edges_FG_ES <- left_join(edges_FG,eff_size_pairs_FG, by = c('from'='Var1', 'to'='Var2'))
 
 #save edges tables
-write_csv(edges_Borneo_ES, "cooccurrence/ALLCR_cooccurrence_network_edges_Borneo.csv")
-write_csv(edges_FG_ES, "cooccurrence/ALLCR_cooccurrence_network_edges_FG.csv")
+write_csv(edges_Borneo_ES, "cooccurrence/dynamicOTUs/cooccurrence_network_edges_Borneo.csv")
+write_csv(edges_FG_ES, "cooccurrence/dynamicOTUs/cooccurrence_network_edges_FG.csv")
 
 ################################################################################
 # Network plotting and analysis
@@ -177,6 +166,7 @@ colnames(transBorneo)<-c('transitivity','locality')
 trans<-rbind(transFG,transBorneo)
 transplot <- ggplot(trans,aes(x=locality,y=transitivity)) + 
   geom_boxplot()
+
 betweenFG<-data.frame(betweennessFG,rep('FG',length(betweennessFG)))
 colnames(betweenFG)<-c('betweenness','locality')
 betweenBorneo<-data.frame(betweennessBorneo,rep('Borneo',length(betweennessBorneo)))
@@ -184,6 +174,7 @@ colnames(betweenBorneo)<-c('betweenness','locality')
 betweenness<-rbind(betweenFG,betweenBorneo)
 betweennessplot <- ggplot(betweenness,aes(x=locality,y=betweenness)) + 
   geom_boxplot()
+
 degrFG<-data.frame(degreeFG,rep('FG',length(degreeFG)))
 colnames(degrFG)<-c('degree','locality')
 degrBorneo<-data.frame(degreeBorneo,rep('Borneo',length(degreeBorneo)))
@@ -226,8 +217,8 @@ weight.community=function(row,membership,weigth.within,weight.between){
   return(weight)
 }
 ###############################################################################
-
-png('FIGURES/Borneo_FG_networks_posneg.png', res = 400, height = 2400, width = 2400)
+#PLOTS
+png('FIGURES/dynamicOTUs/Borneo_FG_networks_posneg.png', res = 400, height = 2400, width = 2400)
 par(mar=c(0,0,0,0), mai = c(0, 0, 0, 0))
 layout(matrix(c(1, 3, 2, 4), nrow = 2, ncol = 2), 
        heights = c(2, 1),
@@ -253,6 +244,11 @@ for(i in 1:nrow(test_table2)){
                                   '#6D6D6D66', '#acd8e666')
 }
 
+test_table %>%
+  mutate(V1 = as.numeric(V1)) %>%
+  left_join(nodes_Borneo,by=c('V1'='id')) %>%
+  write_csv(., "cooccurrence/dynamicOTUs/pos_cooccurrence_modules_Borneo.csv")
+
 plot(community_modules1, graph, 
      col=colvec,
      vertex.size=2,
@@ -275,7 +271,7 @@ community_modules1$membership[community_modules1$membership %in% singletons] <- 
 E(graph_FG)$weight=apply(get.edgelist(graph_FG),1,weight.community,membership(community_modules_FG),5,1)
 graph_FG$layout=layout.fruchterman.reingold(graph_FG,weights=E(graph_FG)$weight)
 #make all singletons as transparent so the polygon doesnt show
-colvec <- c('#F5B84C','#E7A7B5','#6D6D6D')[as.numeric(as.factor(community_modules1$membership))]
+colvec <- c('#F5B84C','#6D6D6D')[as.numeric(as.factor(community_modules1$membership))]
 
 #colour the edges by communities. if they are within communities then blue if not then grey
 test_table <- data.frame(community_modules1$names,community_modules1$membership)
@@ -286,6 +282,11 @@ for(i in 1:nrow(test_table2)){
   test_table2$colour[i] <- ifelse(test_table2$community.x[i]==999|test_table2$community.y[i]==999, 
                                   '#6D6D6D66', '#acd8e666')
 }
+
+test_table %>%
+  mutate(V1 = as.numeric(V1)) %>%
+  left_join(nodes_FG,by=c('V1'='id')) %>%
+  write_csv(., "cooccurrence/dynamicOTUs/pos_cooccurrence_modules_FG.csv")
 
 plot(community_modules1, graph_FG, 
      col=colvec,
