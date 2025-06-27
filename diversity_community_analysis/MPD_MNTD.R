@@ -1,4 +1,6 @@
-#Calculating SES for MPD MNTD to assess phylogenetic alpha diversity
+#SES MPD MNTD
+
+setwd("~/OneDrive - Natural History Museum/01_PUBLICATIONS/ITS_Fungi_Metabarcoding/RESULTS/")
 
 library(tidyverse)
 library(reshape2)
@@ -6,32 +8,32 @@ library(ape)
 library(picante)
 library(cowplot)
 
-#Read in UNITE blastn results
-taxonomy_data <- read_csv("UNITE_TBAS_CR.csv") %>%
-  select(c(query, consensus_three))
-#read in sample metadata
-sample_data <- read_csv('Sco_Pla_FG_Borneo_metadata.csv') %>%
-  dplyr::select(c(fungal_metabarcode_ID,FAMILY,subfamily,country))
+#read in dissimilarity matrices
+OTU_table <- read_tsv('OTUs/OTUsotu_table.txt') %>% 
+  slice(-1) %>%
+  column_to_rownames(var = "OTU_ID") %>%
+  t() %>%
+  as.data.frame()
 
-#read in data with OTUs and their presence in each sample
-OTU_2_Sample <- read_tsv("ALLCRfiltered_feature-table.tsv", skip = 1) %>% 
-  #convert to presence absence
-  mutate_if(is.numeric, ~1 * (. > 0)) %>%
-  #transpose
-  pivot_longer(Borneo_Sco_P1_A01:FG_Sco_P3_H08) %>% 
-  pivot_wider(names_from = `#OTU ID`, values_from = value) %>%
-  #set OTU ID as rownames
-  column_to_rownames(var = "name")
+#read in sample data
+sample_data <- read_csv('../NCBI_submission/Sco_Pla_FG_Borneo_metadata.csv') %>%
+  dplyr::select(c(fungal_metabarcode_ID,subfamily,country)) %>% 
+  rename(index = fungal_metabarcode_ID) %>%
+  replace_na(list(subfamily = 'Platypodinae')) %>%
+  filter(index %in% rownames(OTU_table)) %>%
+  arrange(index)
+
 
 #read tree
-iqtree <- read.tree('TREES/CRotus_3820T_untrimmed_guidance.treefile')
+iqtree <- read.tree('TREES/FastTree_OTUs.tree')
+iqtree$tip.label <- gsub('_',':',iqtree$tip.label)
 #convert tree to phylogenetic distance matrix
 phydist <- cophenetic(iqtree)
 
 #calculate MPD and MNTD. Compare phylogenetic diversity to null model
-ses.mpd.result <- ses.mpd(OTU_2_Sample, phydist, null.model="taxa.labels",
+ses.mpd.result <- ses.mpd(OTU_table, phydist, null.model="taxa.labels",
                           abundance.weighted=FALSE, runs=999)
-ses.mntd.result <- ses.mntd(OTU_2_Sample, phydist, null.model="taxa.labels",
+ses.mntd.result <- ses.mntd(OTU_table, phydist, null.model="taxa.labels",
                             abundance.weighted=FALSE, runs=999)
 ses.mpd.result
 ses.mntd.result
@@ -198,11 +200,13 @@ barplots <- plot_grid(country_plot + theme_minimal() + theme(legend.position="no
                                                             axis.title.y = element_blank()),
                       country_plot_MNTD + theme_minimal() + theme(legend.position="none"), 
                       family_plot_MNTD + theme_minimal() + theme(legend.position="none",
-                                                            axis.text.y = element_blank(),
-                                                            axis.title.y = element_blank()) +
+                                                                 axis.text.y = element_blank(),
+                                                                 axis.title.y = element_blank()) +
                         xlab('family')
-                      )
+)
 
 png("FIGURES/MPD_MNTD_barcharts.png", res = 400, height = 2480*0.811, width = 2480)
 plot_grid(legend_subfam, barplots, nrow = 2, rel_heights = c(0.1,1))
 dev.off()
+
+
