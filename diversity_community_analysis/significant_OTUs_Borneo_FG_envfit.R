@@ -1,157 +1,139 @@
-#pull out which OTUs significantly correlate with the clustering of points on PCoA plots
+#ADONIS
 library(tidyverse)
 library(vegan)
 library(cowplot)
 library(FUNGuildR)
 
+setwd("~/OneDrive - Natural History Museum/01_PUBLICATIONS/ITS_Fungi_Metabarcoding/RESULTS/")
+
 #read in dissimilarity matrices
-BrayCurtis_diss <- read_tsv('CRcoremetrics/bray_curtis_distance_matrix/data/distance-matrix.tsv') %>%
-  column_to_rownames("...1")
-UnwUniFrac_diss <- read_tsv('IQtreeCRcoremetrics/unweighted_unifrac/unweighted_unifrac_distance_matrix/distance-matrix.tsv') %>%
-  column_to_rownames("...1")
-Jaccard_diss <- read_tsv('CRcoremetrics/jaccard_distance_matrix/data/distance-matrix.tsv') %>%
-  column_to_rownames("...1")
+OTU_table <- read_tsv('OTUs/OTUsotu_table.txt') %>% 
+  slice(-1) %>%
+  column_to_rownames(var = "OTU_ID")
+
+#remove OTUs with less than 10 reads in total
+OTU_table <- OTU_table[rowSums(OTU_table) >= 10, ]
+#remove OTUs in less than 3 samples
+OTU_table <- OTU_table[rowSums(OTU_table > 0) >= 3, ]
+
+#transpose
+OTU_table <- OTU_table %>%
+  t() %>%
+  as.data.frame()
+
+#hellinger transformation
+OTU_table <- decostand(OTU_table, method = "hellinger")
+
 #read in sample data
-sample_data <- read_csv('Sco_Pla_FG_Borneo_metadata.csv') %>%
+sample_data <- read_csv('../NCBI_submission/Sco_Pla_FG_Borneo_metadata.csv') %>%
   dplyr::select(c(fungal_metabarcode_ID,subfamily,country)) %>% 
   rename(index = fungal_metabarcode_ID) %>%
   replace_na(list(subfamily = 'Platypodinae')) %>%
-  filter(index %in% colnames(BrayCurtis_diss))
+  filter(index %in% rownames(OTU_table)) %>%
+  arrange(index)
+
+#Danum Valley to remove
+Danum_Valley <- c('FG_Sco_P2_A09','FG_Sco_P2_A10','FG_Sco_P2_B09','FG_Sco_P2_B10','FG_Sco_P2_C09','FG_Sco_P2_C10','FG_Sco_P2_D09','FG_Sco_P2_D10','FG_Sco_P2_E09','FG_Sco_P2_E10','FG_Sco_P2_F09','FG_Sco_P2_F10','FG_Sco_P2_G09','FG_Sco_P2_H08','FG_Sco_P2_H09')
+sample_data <- sample_data[ ! sample_data$index %in% Danum_Valley, ] %>%
+  arrange(index)
+
+#find out which samples dont have metadata for and remove them
+missing_metadata <- setdiff(rownames(OTU_table), sample_data$index)
+OTU_table_reduced <- OTU_table[ ! rownames(OTU_table) %in% missing_metadata, ]
+
+#Calculate UniFrac indices
+#read tree
+iqtree <- read.tree('TREES/FastTree_OTUs.tree')
+iqtree$tip.label <- gsub('_',':',iqtree$tip.label)
+Physeq <- phyloseq(otu_table(OTU_table_reduced, taxa_are_rows=FALSE),phy_tree(iqtree))
+UnwUniFrac_diss <- UniFrac(Physeq, weighted = FALSE, parallel = TRUE)
 
 #PCoA of distances
-pco_BrayCurtis <- wcmdscale(as.dist(BrayCurtis_diss), eig = TRUE)
-pco_UnwUniFrac <- wcmdscale(as.dist(UnwUniFrac_diss), eig = TRUE)
-pco_Jaccard <- wcmdscale(as.dist(Jaccard_diss), eig = TRUE)
+pco_BrayCurtis <- wcmdscale(vegdist(OTU_table_reduced, method = 'bray'), eig = TRUE)
+pco_Jaccard <- wcmdscale(vegdist(OTU_table_reduced, method = 'jaccard'), eig = TRUE)
+pco_UnwUniFrac <- wcmdscale(UnwUniFrac_diss, eig = TRUE)
+
 
 #add metdatat
 metadat_PcoA <- inner_join(rownames_to_column(as.data.frame(pco_BrayCurtis$points)),
                            sample_data, by = c('rowname' = 'index'))
-metadat_PcoA_UnwUniFrac <- inner_join(rownames_to_column(as.data.frame(pco_UnwUniFrac$points)),
-                                      sample_data, by = c('rowname' = 'index'))
 metadat_PcoA_Jaccard <- inner_join(rownames_to_column(as.data.frame(pco_Jaccard$points)),
                                    sample_data, by = c('rowname' = 'index'))
+metadat_PcoA_UnwUniFrac <- inner_join(rownames_to_column(as.data.frame(pco_UnwUniFrac$points)),
+                                      sample_data, by = c('rowname' = 'index'))
 
 
 #as we cant access loadings in PCoA due to information loss when converting to dissimilarity, we can fit the OTUs as environmental variables for the biplot to see which ones correlate with the dispersal of points from PCoA
 #bray curtis
-envfit_data <- read_csv('ALLCR_level-5.csv') %>%
-  filter(index %in% colnames(BrayCurtis_diss))
-envfit_data_OTUs <- envfit_data[,-c(421:426)] %>% column_to_rownames('index')
-efit <- envfit(pco_BrayCurtis, envfit_data)
-
-#unweighted unifrac
-envfit_data_unifrac <- read_csv('ALLCR_level-5.csv') %>%
-  filter(index %in% colnames(UnwUniFrac_diss))
-envfit_data_unifrac_OTUs <- envfit_data_unifrac[,-c(421:426)] %>% column_to_rownames('index')
-efit_unifrac <- envfit(pco_UnwUniFrac, envfit_data_unifrac)
+efit <- envfit(pco_BrayCurtis, OTU_table_reduced)
 
 #Jaccard
-envfit_data_Jaccard <- read_csv('ALLCR_level-5.csv') %>%
-  filter(index %in% colnames(Jaccard_diss))
-envfit_data_Jaccard_OTUs <- envfit_data_Jaccard[,-c(421:426)] %>% column_to_rownames('index')
-efit_Jaccard <- envfit(pco_Jaccard, envfit_data_Jaccard)
+efit_Jaccard <- envfit(pco_Jaccard, OTU_table_reduced)
 
 
-#function to extract variable and make a list of colours
-taxon_colour_function <- function(colours,taxa_list, variable){
-  taxon_vector <- c()
-  #for each taxon on the list of taxa
-  for(taxon in taxa_list){
-    #find which group its in at a particular taxonomic rank
-    group <- subset(sample_data, index == taxon)[,variable][[1]]
-    taxon_vector <- c(taxon_vector,group)
-  }
-  taxon_vector <- as.factor(taxon_vector)
-  #make a vector of colours using the colours given and the taxa list
-  colour_vector <- colours[taxon_vector]
-  #make a vector given the levels of the taxa
-  level_vector <- levels(taxon_vector)
-  #combine into data frame to be able to access
-  output <- data.frame(taxon_vector,colour_vector)
-}
+#unweighted unifrac
+efit_unifrac <- envfit(pco_UnwUniFrac, OTU_table_reduced)
 
-colours_country <- taxon_colour_function(colours = c("#B25690","#71B379"),
-                                                taxa_list = sample_data$index,
-                                                variable = "country")
-
-
-#we can then plot the significant ones on top of the biplot
-png("FIGURES/BrayCurtis_PCoA_envfittOTUs.png",  res = 300, width = 2000, height = 2000)
-plot(pco_BrayCurtis,type = "n")
-points(pco_BrayCurtis$points, display = "sites",
-       scaling = "symmetric",
-       col = colours_country$colour_vector)
-abline(h = 0, v = 0, lty = 2)
-ordiellipse(pco_BrayCurtis$points, groups = na.omit(colours_country$taxon_vector),
-            kind = "ehull", col = c("#B25690","#71B379"),
-            scaling = "symmetric", lwd = 2, lty = 2)
-legend("topright",
-       legend = unique(colours_country$taxon_vector),
-       col = unique(colours_country$colour_vector),
-       pch = 19)
-plot(efit, col = "red", cex = 0.5, p.max=0.05)
-dev.off()
-
-png("FIGURES/UnwUnifrac_PCoA_envfitOTUs.png",  res = 300, width = 2000, height = 2000)
-plot(pco_UnwUniFrac,type = "n")
-points(pco_UnwUniFrac$points, display = "sites",
-       scaling = "symmetric",
-       col = colours_country$colour_vector)
-abline(h = 0, v = 0, lty = 2)
-ordiellipse(pco_UnwUniFrac$points, groups = na.omit(colours_country$taxon_vector),
-            kind = "ehull", col = c("#B25690","#71B379"),
-            scaling = "symmetric", lwd = 2, lty = 2)
-legend("topright",
-       legend = unique(colours_country$taxon_vector),
-       col = unique(colours_country$colour_vector),
-       pch = 19)
-plot(efit_unifrac, col = "red", cex = 0.5, p.max=0.05)
-dev.off()
-
-png("FIGURES/Jaccard_PCoA_envfittOTUs.png",  res = 300, width = 2000, height = 2000)
-plot(pco_Jaccard,type = "n")
-points(pco_Jaccard$points, display = "sites",
-       scaling = "symmetric",
-       col = colours_country$colour_vector)
-abline(h = 0, v = 0, lty = 2)
-ordiellipse(pco_Jaccard$points, groups = na.omit(colours_country$taxon_vector),
-            kind = "ehull", col = c("#B25690","#71B379"),
-            scaling = "symmetric", lwd = 2, lty = 2)
-legend("topright",
-       legend = unique(colours_country$taxon_vector),
-       col = unique(colours_country$colour_vector),
-       pch = 19)
-plot(efit_Jaccard, col = "red", cex = 0.5, p.max=0.05)
-dev.off()
 
 #extract a table with those ones for each subfamily
 spp.scrs <- as.data.frame(vegan::scores(efit, display = "vectors"))
 spp.scrs <- cbind(spp.scrs, OTU = rownames(spp.scrs), Pvalues = efit$vectors$pvals, R_squared = efit$vectors$r, ArrowLength = abs(spp.scrs$Dim1 - spp.scrs$Dim2))
 
-spp.scrs_unifrac <- as.data.frame(vegan::scores(efit_unifrac, display = "vectors"))
-spp.scrs_unifrac <- cbind(spp.scrs_unifrac, OTU = rownames(spp.scrs_unifrac), Pvalues = efit_unifrac$vectors$pvals, R_squared = efit_unifrac$vectors$r, ArrowLength = abs(spp.scrs_unifrac$Dim1 - spp.scrs_unifrac$Dim2))
-
 spp.scrs_Jaccard <- as.data.frame(vegan::scores(efit_Jaccard, display = "vectors"))
 spp.scrs_Jaccard <- cbind(spp.scrs_Jaccard, OTU = rownames(spp.scrs_Jaccard), Pvalues = efit_Jaccard$vectors$pvals, R_squared = efit_Jaccard$vectors$r, ArrowLength = abs(spp.scrs_Jaccard$Dim1 - spp.scrs_Jaccard$Dim2))
 
-# select significant P-values and then subset those that correlate with the countries based on their position in the biplot
-spp.scrs <- subset(spp.scrs, Pvalues < 0.01)
-#to select only top 10 add the slice_max
-spp.scrs.Borneo <- subset(spp.scrs, Dim1 < 0 ) #%>% slice_max(order_by = ArrowLength, n = 10)
-spp.scrs.FG <- subset(spp.scrs, Dim1 > 0) #%>% slice_max(order_by = ArrowLength, n = 10)
-write_csv(spp.scrs.Borneo, "significant_OTUs_Borneo.csv")
-write_csv(spp.scrs.FG, "significant_OTUs_FG.csv")
+spp.scrs_unifrac <- as.data.frame(vegan::scores(efit_unifrac, display = "vectors"))
+spp.scrs_unifrac <- cbind(spp.scrs_unifrac, OTU = rownames(spp.scrs_unifrac), Pvalues = efit_unifrac$vectors$pvals, R_squared = efit_unifrac$vectors$r, ArrowLength = abs(spp.scrs_unifrac$Dim1 - spp.scrs_unifrac$Dim2))
 
-#unifrac
-spp.scrs_unifrac <- subset(spp.scrs_unifrac, Pvalues < 0.01)
-spp.scrs_unifrac.Borneo <- subset(spp.scrs_unifrac, Dim1 < 0 & Dim2 < 0) #%>% slice_max(order_by = ArrowLength, n = 10)
-spp.scrs_unifrac.FG <- subset(spp.scrs_unifrac, Dim1 < 0 & Dim2 > 0) #%>% slice_max(order_by = ArrowLength, n = 10)
-write_csv(spp.scrs_unifrac.Borneo, "significant_OTUs_unifrac_Borneo.csv")
-write_csv(spp.scrs_unifrac.FG, "significant_OTUs_unifrac_FG.csv")
+# select significant P-values and then subset those that correlate with the countries based on their position in the biplot
+# Extract scores (arrows), R² and p-values
+arrows <- scores(efit, display = "vectors")
+r2_values <- efit$vectors$r
+pvals <- efit$vectors$pvals
+# Combine into one data frame
+efit_df <- data.frame(arrows, R2 = r2_values, P = pvals)
+# Filter for high R² and significant p-value
+efit_filtered <- efit_df[efit_df$R2 >= 0.2 & efit_df$P <= 0.01, ]
+
+#show plot
+metadat_PcoA %>%
+  ggplot(aes(x= Dim1, y = Dim2, colour = country)) +
+  scale_colour_manual(values = c("#71B379","#B25690")) + 
+  geom_point() +
+  #geom_text(aes(label = rowname)) +
+  stat_ellipse(type = "norm", show.legend = FALSE) +
+  theme_minimal() +
+  xlab('PCoA axis 1') +
+  ylab('PCoA axis 2') +
+  geom_segment(data = efit_filtered,
+               aes(x = 0, y = 0, xend = Dim1, yend = Dim2),
+               arrow = arrow(length = unit(0.2, "cm")),
+               color = "red") +
+  geom_text(data = efit_filtered,
+            aes(x = Dim1, y = Dim2, label = rownames(efit_filtered)),
+            hjust = 0, nudge_x = 0.05, color = "red") +
+  xlim(-0.5,1)
+
+
+
+spp.scrs <- subset(spp.scrs, Pvalues < 0.01 & R_squared > 0.2)
+#to select only top 10 add the slice_max
+spp.scrs.Borneo <- subset(spp.scrs, Dim1 > 0 & Dim2 < 0) #%>% slice_max(order_by = ArrowLength, n = 10)
+spp.scrs.FG <- subset(spp.scrs, Dim1 < 0) #%>% slice_max(order_by = ArrowLength, n = 10)
+write_csv(spp.scrs.Borneo, "dynamicOTUs/significant_OTUs_Borneo.csv")
+write_csv(spp.scrs.FG, "dynamicOTUs/significant_OTUs_FG.csv")
+
 
 #jaccard
-spp.scrs_Jaccard <- subset(spp.scrs_Jaccard, Pvalues < 0.01)
-spp.scrs_Jaccard.FG <- subset(spp.scrs_Jaccard, Dim1 < 0) #%>% slice_max(order_by = ArrowLength, n = 10)
+spp.scrs_Jaccard <- subset(spp.scrs_Jaccard, Pvalues < 0.01 & R_squared > 0.2)
 spp.scrs_Jaccard.Borneo <- subset(spp.scrs_Jaccard, Dim1 > 0 & Dim2 < 0) #%>% slice_max(order_by = ArrowLength, n = 10)
-write_csv(spp.scrs_Jaccard.Borneo, "significant_OTUs_Jaccard_Borneo.csv")
-write_csv(spp.scrs_Jaccard.FG, "significant_OTUs_Jaccard_FG.csv")
+spp.scrs_Jaccard.FG <- subset(spp.scrs_Jaccard, Dim1 < 0) #%>% slice_max(order_by = ArrowLength, n = 10)
+write_csv(spp.scrs_Jaccard.Borneo, "dynamicOTUs/significant_OTUs_Jaccard_Borneo.csv")
+write_csv(spp.scrs_Jaccard.FG, "dynamicOTUs/significant_OTUs_Jaccard_FG.csv")
+
+#unifrac
+spp.scrs_unifrac <- subset(spp.scrs_unifrac, Pvalues < 0.01 & R_squared > 0.2)
+spp.scrs_unifrac.Borneo <- subset(spp.scrs_unifrac, Dim1 < 0 & Dim2 < 0) #%>% slice_max(order_by = ArrowLength, n = 10)
+spp.scrs_unifrac.FG <- subset(spp.scrs_unifrac, Dim1 < 0 & Dim2 > 0) #%>% slice_max(order_by = ArrowLength, n = 10)
+write_csv(spp.scrs_unifrac.Borneo, "dynamicOTUs/significant_OTUs_unifrac_Borneo.csv")
+write_csv(spp.scrs_unifrac.FG, "dynamicOTUs/significant_OTUs_unifrac_FG.csv")
