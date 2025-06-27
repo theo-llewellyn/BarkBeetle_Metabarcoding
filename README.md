@@ -14,40 +14,34 @@ Order of analyses:
 ## 1. Sequence Denoising
 `cd denoising`
 
-The following scripts demultiplex and denoise reads, merge forward and reverse reads, detect consensus chimaeras and cluster reads in operational taxonomic units.
+The following scripts demultiplex and denoise reads, merge forward and reverse reads, detect consensus chimaeras and cluster reads into ASVs.
 1. `./demultiplex.sh`
-2. `./DADA2_denoising_chimaera.sh`
-5. `./OTU_clustering.sh`
+2. `./vsearch.sh`
 
 ## 2. Taxonomic identification
 `cd taxID`
 
-These scripts assign taxonomy to fungal OTUs using a consensus approach of three methods: 1) the Bayesian classifier algorithm RDP trained on UNITE, 2) local BLASTn searches against UNITE, and 3) phylogenetic placement using TBAS
-1. `./RDP.sh`
-2. BLASTn and phylogenetic placement were run from the T-BAS GUI webpage (https://tbas.cifr.ncsu.edu/tbas2_3/pages/tbas.php) using the Fungi v3 reference tree and RAxML-EPA algorithm for phylogenetic placement.
-3. `Rscript OTU_taxonomy_plot_TBAS_UNITE_ALLCR.R` This script finds consensus between three methods and produces summary plots of the taxonomy
-4. `Rscript OTU_taxonomy_plot_TBAS_UNITE_ALLCR_scolytinae_vs_platypodinae.R` As above but also summarising differences between host subfamilies and locality
+These scripts assign taxonomy to fungal ASVs using taxon-specific thresholds of ITS2 clustering. ASVs are then clustered into OTUs dynamically.
+1. `./dnabarcoder.sh`
+2. `./dynamicclustering.R`
 
 ## 3. Fungal Diversity and Community Detection Analysis
 `cd diversity_community_analysis`
-The following scripts reconstruct a phylogeny of fungal OTUs, calculate alpha and beta diversity metrics, compare diversity between host subfamilies and localities, identify indicator species, and conduct species co-occurrence analysis
+The following scripts calculates alpha and beta diversity metrics, compare diversity between host subfamilies and localities, identify indicator species, and conduct species co-occurrence analysis.
 
 ### 3.1 Phylogenetic reconstruction
-1. `./fasttree.sh`
-2. `sbatch mafft_BeetleOTU.sh`
-3. `sbatch trimal.sh`
-4. `sbatch iqtree.sh` `sbatch iqtree_trimmed.sh` `sbatch iqtree_trimmed_gt0.2.sh`
-5. `Rscript OTU_ALLCR_treeplots.R` compares monophyly of fungal phyla across phylogenetic reconstruction methods. Requires the four tree files (FastTree and 3 IQTrees) and consensus taxonomy files from Section 2
+1. `sbatch mafft_BeetleOTU.sh`
+2. `./fasttree.sh`
 
 ### 3.2 Diversity Analysis
-The following scripts were repeated for the four trees to test whether tree reconstruction method impacted results
-1. `./calculate_diversity_metrics.sh`
-2. `Rscript Multivariate_analysis_ALLCR.R` Beta diversity analysis
-3. `Rscript MPD_MNTD.R` Calculate phylogenetic alpha diversity metrics
-4. `Rscript Multivariate_analysis_ALLCR_alpha.R` alpha diversity analysis
-5. `./calculate_principal_unifrac.sh` calculate unifrac distances for traps instead of samples
-6. `Rscript Multivariate_analysis_ALLCR_trap_effect.R` test the effect of traps on beta diversity results
+1. `Rscript alpha_div_2025.R` alpha diversity calculation and analysis
+2. `Rscript MPD_MNTD.R` Calculate phylogenetic alpha diversity metrics
+3. `Rscript Multivariate_analysis.R` Beta diversity analysis
+4. `./calculate_principal_unifrac.sh` calculate unifrac distances for traps instead of samples
+5. `Rscript trap_effect.R` test the effect of traps on beta diversity results
 
 ### 3.3 Indicator and Community Detection
 1. `Rscript significant_OTUs_Borneo_FG_envfit.R` pulls OTUs that significantly correlate with the PCoA clusters obtained from step 3.2.2
 2. `Rscript cooccurrence_analysis.R` requires a modified version of the cooccur package plot.cooccur function to allow for two-tail testing
+3. `Rscript FUNGUILD_cooccurrences.R` assesses and visualised functional ecology of OTUs from co-occurrence analysis
+4. `Rscript PIME.R` uses prevalence filtering and Random Forests to detect core OTUs for countries
